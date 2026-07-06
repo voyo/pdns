@@ -1,0 +1,12 @@
+tmp/
+.debhelper/
+files
+debhelper-build-stamp
+*.substvars
+*.debhelper.log
+autoreconf.before
+autoreconf.after
+pdns-server/
+pdns-tools/
+pdns-ixfrdist/
+pdns-backend-*/

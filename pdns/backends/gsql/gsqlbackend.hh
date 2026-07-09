@@ -123,6 +123,16 @@ protected:
       d_DeleteCommentsQuery_stmt = d_db->prepare(d_DeleteCommentsQuery, 1);
       d_SearchRecordsQuery_stmt = d_db->prepare(d_SearchRecordsQuery, 3);
       d_SearchCommentsQuery_stmt = d_db->prepare(d_SearchCommentsQuery, 3);
+
+      if (d_views) {
+        d_ViewListQuery_stmt = d_db->prepare(d_ViewListQuery, 0);
+        d_ViewListZonesQuery_stmt = d_db->prepare(d_ViewListZonesQuery, 1);
+        d_ViewAddZoneQuery_stmt = d_db->prepare(d_ViewAddZoneQuery, 3);
+        d_ViewDelZoneQuery_stmt = d_db->prepare(d_ViewDelZoneQuery, 2);
+        d_NetworkSetQuery_stmt = d_db->prepare(d_NetworkSetQuery, 2);
+        d_NetworkUnsetQuery_stmt = d_db->prepare(d_NetworkUnsetQuery, 1);
+        d_NetworkListQuery_stmt = d_db->prepare(d_NetworkListQuery, 0);
+      }
     }
   }
 
@@ -195,6 +205,13 @@ protected:
     d_DeleteCommentsQuery_stmt.reset();
     d_SearchRecordsQuery_stmt.reset();
     d_SearchCommentsQuery_stmt.reset();
+    d_ViewListQuery_stmt.reset();
+    d_ViewListZonesQuery_stmt.reset();
+    d_ViewAddZoneQuery_stmt.reset();
+    d_ViewDelZoneQuery_stmt.reset();
+    d_NetworkSetQuery_stmt.reset();
+    d_NetworkUnsetQuery_stmt.reset();
+    d_NetworkListQuery_stmt.reset();
   }
 
 public:
@@ -262,6 +279,13 @@ public:
   bool searchRecords(const string &pattern, size_t maxResults, vector<DNSResourceRecord>& result) override;
   bool searchComments(const string &pattern, size_t maxResults, vector<Comment>& result) override;
   bool get_unsafe(DNSResourceRecord& rec, std::vector<std::pair<std::string, std::string>>& invalid) override;
+
+  void viewList(vector<string>& result) override;
+  void viewListZones(const string& view, vector<ZoneName>& result) override;
+  bool viewAddZone(const string& view, const ZoneName& zone) override;
+  bool viewDelZone(const string& view, const ZoneName& zone) override;
+  bool networkSet(const Netmask& net, std::string& tag) override;
+  bool networkList(vector<pair<Netmask, string>>& networks) override;
 
 protected:
   string pattern2SQLPattern(const string& pattern);
@@ -380,6 +404,14 @@ private:
   string d_SearchRecordsQuery;
   string d_SearchCommentsQuery;
 
+  string d_ViewListQuery;
+  string d_ViewListZonesQuery;
+  string d_ViewAddZoneQuery;
+  string d_ViewDelZoneQuery;
+  string d_NetworkSetQuery;
+  string d_NetworkUnsetQuery;
+  string d_NetworkListQuery;
+
 
   unique_ptr<SSqlStatement> d_NoIdQuery_stmt;
   unique_ptr<SSqlStatement> d_IdQuery_stmt;
@@ -450,9 +482,18 @@ private:
   unique_ptr<SSqlStatement> d_SearchRecordsQuery_stmt;
   unique_ptr<SSqlStatement> d_SearchCommentsQuery_stmt;
 
+  unique_ptr<SSqlStatement> d_ViewListQuery_stmt;
+  unique_ptr<SSqlStatement> d_ViewListZonesQuery_stmt;
+  unique_ptr<SSqlStatement> d_ViewAddZoneQuery_stmt;
+  unique_ptr<SSqlStatement> d_ViewDelZoneQuery_stmt;
+  unique_ptr<SSqlStatement> d_NetworkSetQuery_stmt;
+  unique_ptr<SSqlStatement> d_NetworkUnsetQuery_stmt;
+  unique_ptr<SSqlStatement> d_NetworkListQuery_stmt;
+
 protected:
   std::unique_ptr<SSql> d_db{nullptr};
   bool d_dnssecQueries;
+  bool d_views{false};
   bool d_inTransaction{false};
   bool d_upgradeContent{false};
 };

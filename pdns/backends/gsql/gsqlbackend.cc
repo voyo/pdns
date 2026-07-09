@@ -58,6 +58,23 @@ GSQLBackend::GSQLBackend(const string &mode, const string &suffix)
     d_upgradeContent = false;
   }
 
+  try {
+    d_views = mustDo("views");
+  }
+  catch (const ArgException&) {
+    d_views = false;
+  }
+
+  if (d_views) {
+    d_ViewListQuery = getArg("view-list-query");
+    d_ViewListZonesQuery = getArg("view-list-zones-query");
+    d_ViewAddZoneQuery = getArg("view-add-zone-query");
+    d_ViewDelZoneQuery = getArg("view-del-zone-query");
+    d_NetworkSetQuery = getArg("network-set-query");
+    d_NetworkUnsetQuery = getArg("network-unset-query");
+    d_NetworkListQuery = getArg("network-list-query");
+  }
+
   d_NoIdQuery=getArg("basic-query");
   d_IdQuery=getArg("id-query");
   d_ANYNoIdQuery=getArg("any-query");
@@ -206,6 +223,13 @@ GSQLBackend::GSQLBackend(const string &mode, const string &suffix)
   d_DeleteCommentsQuery_stmt = nullptr;
   d_SearchRecordsQuery_stmt = nullptr;
   d_SearchCommentsQuery_stmt = nullptr;
+  d_ViewListQuery_stmt = nullptr;
+  d_ViewListZonesQuery_stmt = nullptr;
+  d_ViewAddZoneQuery_stmt = nullptr;
+  d_ViewDelZoneQuery_stmt = nullptr;
+  d_NetworkSetQuery_stmt = nullptr;
+  d_NetworkUnsetQuery_stmt = nullptr;
+  d_NetworkListQuery_stmt = nullptr;
 }
 
 void GSQLBackend::setNotified(domainid_t domain_id, uint32_t serial)
@@ -927,7 +951,177 @@ unsigned int GSQLBackend::getCapabilities()
   if (d_dnssecQueries) {
     caps |= CAP_DNSSEC;
   }
+  if (d_views) {
+    caps |= CAP_VIEWS;
+  }
   return caps;
+}
+
+void GSQLBackend::viewList(vector<string>& result)
+{
+  result.clear();
+  if (!d_views) {
+    return;
+  }
+  try {
+    reconnectIfNeeded();
+
+    // clang-format off
+    d_ViewListQuery_stmt->
+      execute();
+    // clang-format on
+
+    SSqlStatement::row_t row;
+
+    while (d_ViewListQuery_stmt->hasNextRow()) {
+      d_ViewListQuery_stmt->nextRow(row);
+      ASSERT_ROW_COLUMNS("view-list-query", row, 1);
+      result.push_back(row[0]);
+    }
+
+    d_ViewListQuery_stmt->reset();
+  }
+  catch (SSqlException& e) {
+    throw PDNSException("GSQLBackend unable to list views: " + e.txtReason());
+  }
+}
+
+void GSQLBackend::viewListZones(const string& view, vector<ZoneName>& result)
+{
+  result.clear();
+  if (!d_views) {
+    return;
+  }
+  try {
+    reconnectIfNeeded();
+
+    // clang-format off
+    d_ViewListZonesQuery_stmt->
+      bind("view", view)->
+      execute();
+    // clang-format on
+
+    SSqlStatement::row_t row;
+
+    while (d_ViewListZonesQuery_stmt->hasNextRow()) {
+      d_ViewListZonesQuery_stmt->nextRow(row);
+      ASSERT_ROW_COLUMNS("view-list-zones-query", row, 2);
+      try {
+        result.emplace_back(DNSName(row[0]), row[1]);
+      }
+      catch (...) {
+        continue;
+      }
+    }
+
+    d_ViewListZonesQuery_stmt->reset();
+  }
+  catch (SSqlException& e) {
+    throw PDNSException("GSQLBackend unable to list zones for view '" + view + "': " + e.txtReason());
+  }
+}
+
+bool GSQLBackend::viewAddZone(const string& view, const ZoneName& zone)
+{
+  try {
+    reconnectIfNeeded();
+
+    // clang-format off
+    d_ViewAddZoneQuery_stmt->
+      bind("view", view)->
+      bind("zone", zone.operator const DNSName&())->
+      bind("variant", zone.getVariant())->
+      execute()->
+      reset();
+    // clang-format on
+  }
+  catch (SSqlException& e) {
+    throw PDNSException("GSQLBackend unable to add zone '" + zone.toLogString() + "' to view '" + view + "': " + e.txtReason());
+  }
+  return true;
+}
+
+bool GSQLBackend::viewDelZone(const string& view, const ZoneName& zone)
+{
+  try {
+    reconnectIfNeeded();
+
+    // clang-format off
+    d_ViewDelZoneQuery_stmt->
+      bind("view", view)->
+      bind("zone", zone.operator const DNSName&())->
+      execute()->
+      reset();
+    // clang-format on
+  }
+  catch (SSqlException& e) {
+    throw PDNSException("GSQLBackend unable to remove zone '" + zone.toLogString() + "' from view '" + view + "': " + e.txtReason());
+  }
+  return true;
+}
+
+bool GSQLBackend::networkSet(const Netmask& net, std::string& tag)
+{
+  try {
+    reconnectIfNeeded();
+
+    if (tag.empty()) {
+      // clang-format off
+      d_NetworkUnsetQuery_stmt->
+        bind("network", net.toString())->
+        execute()->
+        reset();
+      // clang-format on
+    }
+    else {
+      // clang-format off
+      d_NetworkSetQuery_stmt->
+        bind("network", net.toString())->
+        bind("view", tag)->
+        execute()->
+        reset();
+      // clang-format on
+    }
+  }
+  catch (SSqlException& e) {
+    throw PDNSException("GSQLBackend unable to set network '" + net.toString() + "': " + e.txtReason());
+  }
+  return true;
+}
+
+bool GSQLBackend::networkList(vector<pair<Netmask, string>>& networks)
+{
+  networks.clear();
+  if (!d_views) {
+    return false;
+  }
+  try {
+    reconnectIfNeeded();
+
+    // clang-format off
+    d_NetworkListQuery_stmt->
+      execute();
+    // clang-format on
+
+    SSqlStatement::row_t row;
+
+    while (d_NetworkListQuery_stmt->hasNextRow()) {
+      d_NetworkListQuery_stmt->nextRow(row);
+      ASSERT_ROW_COLUMNS("network-list-query", row, 2);
+      try {
+        networks.emplace_back(Netmask(row[0]), row[1]);
+      }
+      catch (...) {
+        continue;
+      }
+    }
+
+    d_NetworkListQuery_stmt->reset();
+  }
+  catch (SSqlException& e) {
+    throw PDNSException("GSQLBackend unable to list networks: " + e.txtReason());
+  }
+  return true;
 }
 
 // NOLINTNEXTLINE(readability-identifier-length)

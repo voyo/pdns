@@ -8,6 +8,21 @@ Please upgrade to the PowerDNS Authoritative Server 4.0.0 from 3.4.2+.
 See the `3.X <https://doc.powerdns.com/3/authoritative/upgrading/>`__
 upgrade notes if your version is older than 3.4.2.
 
+5.1.0 to 5.2.0
+--------------
+
+Views support for the PostgreSQL backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:doc:`Views <views>` support, previously only available for the
+:doc:`LMDB <backends/lmdb>` backend, is now also available for the
+:doc:`PostgreSQL <backends/generic-postgresql>` backend. See
+:ref:`setting-gpgsql-views`. Existing installations that wish to use this
+feature need to apply the schema addition in
+``4.7.0_to_5.2.0_schema.pgsql.sql``, which adds the new ``networks`` and
+``views`` tables; installations which do not use views do not need to apply
+it. The MySQL and SQLite3 backends do not support Views yet.
+
 5.0.0 to 5.1.0
 --------------
 

@@ -1,3 +1,18 @@
+pdns (5.1.3-3.devuan5) unstable; urgency=medium
+
+  * Views bugfixes found during upstream PR review and regression testing:
+    - GSQLBackend::getSOA: with views enabled, a name-only SOA lookup could
+      match a variant zone instead of the base zone (base and variants share
+      record names). Affected AXFR-out of zones that have variants: the
+      transfer could stream variant content. Now resolves the exact domain
+      (variant included) via getDomainInfo before the SOA lookup.
+    - viewAddZone/viewDelZone/networkSet: guard against being called with
+      views disabled (would dereference an unprepared statement).
+    - viewListZones/networkList: log and skip malformed rows instead of
+      silently ignoring them.
+
+ -- voyo <voyo@swarog>  Thu, 24 Jul 2026 02:50:00 +0200
+
 pdns (5.1.3-2.devuan5) unstable; urgency=medium
 
   * Added CAP_VIEWS (Split-Horizon Views) support for the gpgsql backend

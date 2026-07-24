@@ -957,6 +957,22 @@ unsigned int GSQLBackend::getCapabilities()
   return caps;
 }
 
+bool GSQLBackend::getSOA(const ZoneName& domain, domainid_t zoneId, SOAData& soaData)
+{
+  if (d_views && zoneId == UnknownDomainID) {
+    // With Views enabled, a base zone and its variants store their records
+    // under the same names, making a name-only SOA lookup ambiguous. Resolve
+    // the exact domain first; getDomainInfo matches the full zone name,
+    // variant included.
+    DomainInfo domaininfo;
+    if (!getDomainInfo(domain, domaininfo, false)) {
+      return false;
+    }
+    zoneId = domaininfo.id;
+  }
+  return DNSBackend::getSOA(domain, zoneId, soaData);
+}
+
 void GSQLBackend::viewList(vector<string>& result)
 {
   result.clear();
@@ -1009,7 +1025,14 @@ void GSQLBackend::viewListZones(const string& view, vector<ZoneName>& result)
       try {
         result.emplace_back(DNSName(row[0]), row[1]);
       }
-      catch (...) {
+      catch (const std::exception& e) {
+        SLOG(g_log << Logger::Warning << __PRETTY_FUNCTION__ << " zone name '" << row[0] << "' is not a valid DNS name: " << e.what() << endl,
+             d_slog->error(Logr::Warning, e.what(), "zone name is not a valid DNS name", "zone", Logging::Loggable(row[0])));
+        continue;
+      }
+      catch (const PDNSException& ae) {
+        SLOG(g_log << Logger::Warning << __PRETTY_FUNCTION__ << " zone name '" << row[0] << "' is not a valid DNS name: " << ae.reason << endl,
+             d_slog->error(Logr::Warning, ae.reason, "zone name is not a valid DNS name", "zone", Logging::Loggable(row[0])));
         continue;
       }
     }
@@ -1023,6 +1046,9 @@ void GSQLBackend::viewListZones(const string& view, vector<ZoneName>& result)
 
 bool GSQLBackend::viewAddZone(const string& view, const ZoneName& zone)
 {
+  if (!d_views) {
+    return false;
+  }
   try {
     reconnectIfNeeded();
 
@@ -1043,6 +1069,9 @@ bool GSQLBackend::viewAddZone(const string& view, const ZoneName& zone)
 
 bool GSQLBackend::viewDelZone(const string& view, const ZoneName& zone)
 {
+  if (!d_views) {
+    return false;
+  }
   try {
     reconnectIfNeeded();
 
@@ -1062,6 +1091,9 @@ bool GSQLBackend::viewDelZone(const string& view, const ZoneName& zone)
 
 bool GSQLBackend::networkSet(const Netmask& net, std::string& tag)
 {
+  if (!d_views) {
+    return false;
+  }
   try {
     reconnectIfNeeded();
 
@@ -1111,7 +1143,14 @@ bool GSQLBackend::networkList(vector<pair<Netmask, string>>& networks)
       try {
         networks.emplace_back(Netmask(row[0]), row[1]);
       }
-      catch (...) {
+      catch (const std::exception& e) {
+        SLOG(g_log << Logger::Warning << __PRETTY_FUNCTION__ << " network '" << row[0] << "' is not a valid netmask: " << e.what() << endl,
+             d_slog->error(Logr::Warning, e.what(), "network is not a valid netmask", "network", Logging::Loggable(row[0])));
+        continue;
+      }
+      catch (const PDNSException& ae) {
+        SLOG(g_log << Logger::Warning << __PRETTY_FUNCTION__ << " network '" << row[0] << "' is not a valid netmask: " << ae.reason << endl,
+             d_slog->error(Logr::Warning, ae.reason, "network is not a valid netmask", "network", Logging::Loggable(row[0])));
         continue;
       }
     }

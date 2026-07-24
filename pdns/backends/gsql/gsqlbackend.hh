@@ -280,6 +280,7 @@ public:
   bool searchComments(const string &pattern, size_t maxResults, vector<Comment>& result) override;
   bool get_unsafe(DNSResourceRecord& rec, std::vector<std::pair<std::string, std::string>>& invalid) override;
 
+  bool getSOA(const ZoneName& domain, domainid_t zoneId, SOAData& soaData) override;
   void viewList(vector<string>& result) override;
   void viewListZones(const string& view, vector<ZoneName>& result) override;
   bool viewAddZone(const string& view, const ZoneName& zone) override;
